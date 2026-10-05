@@ -1,0 +1,85 @@
+@import 'tailwindcss';
+
+/* Theme values point at the --bh-* variables generated from @bhojan/shared tokens
+   (see src/lib/tokens-css.ts), so colours are defined in exactly one place. */
+@theme inline {
+  --color-bg: var(--bh-background);
+  --color-surface: var(--bh-surface);
+  --color-surface-muted: var(--bh-surface-muted);
+  --color-surface-sunken: var(--bh-surface-sunken);
+  --color-line: var(--bh-border);
+  --color-line-strong: var(--bh-border-strong);
+  --color-ink: var(--bh-text);
+  --color-ink-soft: var(--bh-text-secondary);
+  --color-ink-muted: var(--bh-text-muted);
+  --color-primary: var(--bh-primary);
+  --color-primary-pressed: var(--bh-primary-pressed);
+  --color-primary-soft: var(--bh-primary-soft);
+  --color-on-primary: var(--bh-on-primary);
+  --color-highlight: var(--bh-highlight);
+  --color-highlight-soft: var(--bh-highlight-soft);
+  --color-success: var(--bh-success);
+  --color-success-soft: var(--bh-success-soft);
+  --color-progress: var(--bh-progress);
+  --color-progress-soft: var(--bh-progress-soft);
+  --color-info: var(--bh-info);
+  --color-info-soft: var(--bh-info-soft);
+  --color-danger: var(--bh-danger);
+  --color-danger-soft: var(--bh-danger-soft);
+  --color-focus: var(--bh-focus);
+  --color-veg: var(--bh-veg-mark);
+
+  --radius-sm: var(--bh-radius-sm);
+  --radius-md: var(--bh-radius-md);
+  --radius-lg: var(--bh-radius-lg);
+
+  --shadow-card: var(--bh-shadow-card);
+  --shadow-raised: var(--bh-shadow-raised);
+
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-sans: var(--font-atkinson), system-ui, sans-serif;
+
+  /* Dashboard type scale (a little denser than the phone app, still generous). */
+  --text-title: 2rem;
+  --text-title--line-height: 2.5rem;
+  --text-heading: 1.375rem;
+  --text-heading--line-height: 1.875rem;
+  --text-body: 1.125rem;
+  --text-body--line-height: 1.75rem;
+  --text-small: 1rem;
+  --text-small--line-height: 1.5rem;
+  --text-numeral: 2.5rem;
+  --text-numeral--line-height: 2.75rem;
+}
+
+html {
+  background: var(--bh-background);
+}
+
+body {
+  background: var(--bh-background);
+  color: var(--bh-text);
+  font-family: var(--font-atkinson), system-ui, sans-serif;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* A visible, consistent keyboard focus ring everywhere. */
+:focus-visible {
+  outline: 3px solid var(--bh-focus);
+  outline-offset: 2px;
+}
+
+dialog::backdrop {
+  background: rgba(33, 29, 26, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

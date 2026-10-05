@@ -1,0 +1,65 @@
+# Supabase CLI configuration for local development (`npx supabase start`).
+# Hosted projects are configured in the Supabase dashboard instead; see README.
+
+project_id = "bhojan"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+# The provider dashboard runs on 3001; the Expo dev server on 8081.
+site_url = "http://localhost:3001"
+additional_redirect_urls = ["http://localhost:8081"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
+otp_length = 6
+otp_expiry = 3600
+
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+template = "Your Bhojan code is {{ .Code }}"
+max_frequency = "5s"
+
+# Fixed codes for test numbers: no SMS is sent. Sign in with +91 99990 00001 and
+# code 123456 (customer), or +91 99990 00002 / 123456 (a new kitchen).
+[auth.sms.test_otp]
+919999000001 = "123456"
+919999000002 = "123456"
+
+# Real SMS: enable one provider and set its secret, e.g. Twilio:
+[auth.sms.twilio]
+enabled = false
+account_sid = ""
+message_service_sid = ""
+auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+
+# Razorpay calls this webhook without a Supabase JWT; it checks Razorpay's signature instead.
+[functions.razorpay-webhook]
+verify_jwt = false

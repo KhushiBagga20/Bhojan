@@ -1,0 +1,26 @@
+{
+  "name": "bhojan",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "customer": "npm run start --workspace customer",
+    "customer:web": "npm run web --workspace customer",
+    "provider": "npm run dev --workspace provider",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:test": "bash supabase/tests/run-local.sh",
+    "db:types": "node supabase/scripts/gen-types.mjs",
+    "format": "prettier --write \"apps/*/src/**/*.{ts,tsx,css}\" \"packages/*/src/**/*.ts\" \"supabase/functions/**/*.ts\" \"supabase/scripts/*.mjs\"",
+    "format:check": "prettier --check \"apps/*/src/**/*.{ts,tsx,css}\" \"packages/*/src/**/*.ts\" \"supabase/functions/**/*.ts\" \"supabase/scripts/*.mjs\""
+  },
+  "overrides": {
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "prettier": "^3.9.9"
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "expo": {
+    "name": "Bhojan",
+    "slug": "bhojan",
+    "scheme": "bhojan",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#FBF7F2",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "app.bhojan.customer"
+    },
+    "android": {
+      "package": "app.bhojan.customer",
+      "adaptiveIcon": {
+        "backgroundColor": "#FBF7F2",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FBF7F2",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
+        }
+      ]
+    ]
+  }
+}
