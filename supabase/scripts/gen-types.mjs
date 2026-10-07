@@ -45,7 +45,10 @@ fns as (
   select p.proname as name, p.pronargdefaults as n_defaults,
          coalesce(p.proargnames, '{}') as arg_names,
          array(select format_type(x, null) from unnest(p.proargtypes::oid[]) x) as arg_types,
-         format_type(p.prorettype, null) as return_type, p.proretset as returns_set
+         format_type(p.prorettype, null) as return_type, p.proretset as returns_set,
+         -- Columns of "returns table (...)" functions.
+         (select coalesce(json_agg(json_build_object('name', p.proargnames[i], 'type', format_type(p.proallargtypes[i], null)) order by i), '[]')
+          from generate_subscripts(p.proallargtypes, 1) i where p.proargmodes[i] in ('t', 'o')) as out_cols
   from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.prokind = 'f'
     and format_type(p.prorettype, null) <> 'trigger'
@@ -141,11 +144,13 @@ w('    Functions: {');
 for (const f of functions) {
   const required = f.arg_types.length - f.n_defaults;
   const args = f.arg_types.map((t, i) => `${f.arg_names[i]}${i >= required ? '?' : ''}: ${tsType(t)}`);
-  const ret = tableNames.includes(f.return_type.replace(/^public\./, ''))
-    ? `Database["public"]["Tables"]["${f.return_type.replace(/^public\./, '')}"]["Row"]`
-    : f.return_type === 'void'
-      ? 'undefined'
-      : tsType(f.return_type);
+  const ret = f.out_cols.length
+    ? `{ ${f.out_cols.map((c) => `${c.name}: ${tsType(c.type)}`).join('; ')} }`
+    : tableNames.includes(f.return_type.replace(/^public\./, ''))
+      ? `Database["public"]["Tables"]["${f.return_type.replace(/^public\./, '')}"]["Row"]`
+      : f.return_type === 'void'
+        ? 'undefined'
+        : tsType(f.return_type);
   w(`      ${f.name}: {`);
   w(`        Args: ${args.length ? `{ ${args.join('; ')} }` : 'never'};`);
   w(`        Returns: ${f.returns_set ? `${ret}[]` : ret};`);

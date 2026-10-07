@@ -17,7 +17,10 @@ const APP_ERRORS: Record<string, string> = {
   PLAN_UNAVAILABLE: 'This meal plan is no longer available. Please choose another plan.',
   ADDRESS_NOT_FOUND: "We couldn't find your delivery address. Please add it again.",
   AREA_NOT_SERVED:
-    "This kitchen doesn't deliver to your PIN code yet. Please choose another kitchen, or check your address.",
+    "This kitchen doesn't deliver as far as your address. Please choose a kitchen closer to you, or check your address.",
+  ADDRESS_NEEDS_LOCATION:
+    'We don’t know where this address is yet. Open your delivery address and tap “Use my current location” while you are there.',
+  LOCATION_INVALID: "We couldn't read your location. Please try again.",
   START_DATE_TOO_SOON: 'That start date is too soon for this kitchen. Please choose a later date.',
   START_DATE_TOO_FAR: 'Please choose a start date within the next two months.',
   NOT_A_DELIVERY_DAY: "The kitchen doesn't deliver on that day. Please choose another date.",
@@ -38,7 +41,7 @@ const APP_ERRORS: Record<string, string> = {
   NOT_A_PROVIDER: 'Please finish setting up your kitchen first.',
   MEAL_IS_IN_FUTURE: "Only today's meals can be marked as preparing, on the way or delivered.",
   INVALID_STATUS: "That status can't be used here.",
-  PROFILE_NEEDS_AREAS: 'Add at least one delivery PIN code before going live.',
+  PROFILE_NEEDS_LOCATION: 'Set your kitchen’s location before going live, so customers nearby can find you.',
   PROFILE_NEEDS_PLAN: 'Add at least one active meal plan before going live.',
   PROFILE_NEEDS_DELIVERY_TIME: 'Add at least one delivery time before going live.',
 };

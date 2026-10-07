@@ -35,8 +35,28 @@ do $$
 begin
   perform tests.act_as_anon();
   perform tests.assert_eq(
-    (select count(*) from public.provider_profiles where '110017' = any (service_pincodes)), 4::bigint,
-    'anon sees the 4 published kitchens serving 110017 (not the draft)');
+    (select count(*) from public.provider_profiles), 4::bigint,
+    'anon sees the 4 published kitchens (not the draft)');
+  -- Discovery by distance: a point in Malviya Nagar, New Delhi.
+  perform tests.assert_eq((select count(*) from public.kitchens_near(28.5339, 77.2110)), 4::bigint,
+    'anon finds the 4 kitchens within 10 km');
+  perform tests.assert_eq(
+    (select provider_id from public.kitchens_near(28.5339, 77.2110) limit 1), '10000000-0000-4000-8000-000000000001'::uuid,
+    'the nearest kitchen comes first');
+  perform tests.assert((select bool_and(distance_km <= 10 and distance_km * 2 = round(distance_km * 2))
+                        from public.kitchens_near(28.5339, 77.2110)),
+    'distances are within the radius and rounded to half a kilometre');
+  perform tests.assert_eq((select count(*) from public.kitchens_near(18.9440, 72.8230)), 0::bigint,
+    'no kitchens are found from Mumbai');
+  perform tests.assert_fails('select * from public.kitchens_near(123, 77)', 'LOCATION_INVALID',
+    'impossible coordinates are refused');
+  perform tests.assert_fails('select count(*) from public.provider_locations', '42501',
+    'anon cannot read where kitchens are');
+  -- Discovery by area, for people who do not share their location.
+  perform tests.assert((select count(*) > 0 from public.kitchen_areas() where area = 'Malviya Nagar'),
+    'areas kitchens deliver to are listed');
+  perform tests.assert_eq((select count(*) from public.kitchens_in_area('  saket ')), 2::bigint,
+    'kitchens are found by area, ignoring case and spaces');
   perform tests.assert_eq(
     (select count(*) from public.plans where provider_id = '10000000-0000-4000-8000-000000000005'), 0::bigint,
     'anon cannot see plans of an unpublished kitchen');
@@ -75,21 +95,23 @@ begin
     format('update public.users set role = %L where id = %L', 'ADMIN', pg_temp.id('customer_a')),
     '42501', 'customer cannot change their role');
 
-  insert into public.addresses (user_id, label, address_line, locality, city, pincode, is_default, instructions)
-  values (pg_temp.id('customer_a'), 'Home', 'B-42, Second Floor', 'Malviya Nagar', 'New Delhi', '110017', true, 'Ring the bell twice')
+  insert into public.addresses (user_id, label, address_line, locality, city, latitude, longitude, is_default, instructions)
+  values (pg_temp.id('customer_a'), 'Home', 'B-42, Second Floor', 'Malviya Nagar', 'New Delhi', 28.5339, 77.2110, true, 'Ring the bell twice')
   returning id into v_address;
+  perform tests.assert_eq((select count(*) from public.provider_locations), 0::bigint,
+    'customers cannot read where kitchens are');
   perform tests.assert_fails(
-    format('insert into public.addresses (user_id, address_line, locality, city, pincode) values (%L, %L, %L, %L, %L)',
-      pg_temp.id('customer_b'), 'x', 'y', 'z', '110017'),
+    format('insert into public.addresses (user_id, address_line, locality, city) values (%L, %L, %L, %L)',
+      pg_temp.id('customer_b'), 'x', 'y', 'z'),
     '42501', 'customer cannot create an address for someone else');
   perform tests.assert_fails(
-    format('insert into public.addresses (user_id, address_line, locality, city, pincode) values (%L, %L, %L, %L, %L)',
-      pg_temp.id('customer_a'), 'x', 'y', 'z', '12345'),
-    '23514', 'PIN codes must be 6 digits');
+    format('insert into public.addresses (user_id, address_line, locality, city, latitude, longitude) values (%L, %L, %L, %L, 123, 77)',
+      pg_temp.id('customer_a'), 'x', 'y', 'z'),
+    '23514', 'coordinates must be real');
 
   perform tests.act_as(pg_temp.id('customer_b'));
-  insert into public.addresses (user_id, label, address_line, locality, city, pincode, is_default)
-  values (pg_temp.id('customer_b'), 'Home', 'C-7', 'Kalkaji', 'New Delhi', '110019', true);
+  insert into public.addresses (user_id, label, address_line, locality, city, latitude, longitude, is_default)
+  values (pg_temp.id('customer_b'), 'Home', 'C-7', 'Kalkaji', 'New Delhi', 28.5494, 77.2588, true);
   perform tests.act_as_superuser();
 end;
 $$;
@@ -352,18 +374,44 @@ declare
   v_plan uuid;
   v_payment public.payments;
   v_address uuid := (select id from public.addresses where user_id = pg_temp.id('customer_a'));
+  v_moved bigint;
 begin
   perform tests.set_now('2026-10-06 11:00');
   perform tests.act_as(v_uid);
 
-  insert into public.provider_profiles (user_id, business_name, tagline, phone, city, service_areas, service_pincodes)
+  insert into public.provider_profiles (user_id, business_name, tagline, phone, city, service_areas)
   values (v_uid, 'Gupta Ji ki Rasoi', 'Home-style vegetarian meals', '919812345678', 'New Delhi',
-          array['Malviya Nagar'], array['110017'])
+          array['Malviya Nagar'])
   returning id into v_provider;
   perform tests.assert_eq(public.current_provider_id(), v_provider, 'current_provider_id resolves');
   perform tests.assert_eq((select role from public.users where id = v_uid), 'PROVIDER'::public.user_role,
     'user became a provider');
 
+  perform tests.assert_fails(
+    format('update public.provider_profiles set is_published = true where id = %L', v_provider),
+    'PROFILE_NEEDS_LOCATION', 'cannot publish without a kitchen location');
+  perform tests.assert_fails(
+    format('insert into public.provider_locations (provider_id, latitude, longitude) values (%L, 28.5, 77.2)', pg_temp.id('sharma')),
+    '42501', 'cannot set the location of another kitchen');
+  with moved as (
+    update public.provider_locations set latitude = 0 where provider_id = pg_temp.id('sharma') returning 1
+  )
+  select count(*) into v_moved from moved;
+  perform tests.assert_eq(v_moved, 0::bigint, 'cannot move another kitchen');
+  insert into public.provider_locations (provider_id, latitude, longitude, accuracy_m) values (v_provider, 28.5360, 77.2090, 15);
+  perform tests.assert_eq((select count(*) from public.provider_locations), 1::bigint,
+    'a provider reads only their own kitchen location');
+  -- Saving again is an upsert, exactly as the dashboard sends it.
+  insert into public.provider_locations (provider_id, latitude, longitude, accuracy_m)
+  values (v_provider, 28.5361, 77.2091, 12)
+  on conflict (provider_id) do update
+    set provider_id = excluded.provider_id, latitude = excluded.latitude,
+        longitude = excluded.longitude, accuracy_m = excluded.accuracy_m;
+  perform tests.assert_eq((select accuracy_m from public.provider_locations where provider_id = v_provider), 12,
+    'a provider can update their kitchen location');
+  perform tests.assert_fails(
+    format('update public.provider_locations set provider_id = %L where provider_id = %L', pg_temp.id('sharma'), v_provider),
+    '42501', 'a location cannot be pointed at another kitchen');
   perform tests.assert_fails(
     format('update public.provider_profiles set is_published = true where id = %L', v_provider),
     'PROFILE_NEEDS_PLAN', 'cannot publish without a plan');
@@ -448,12 +496,30 @@ begin
   perform tests.assert_eq((select status from public.meal_orders where id = v_meal), 'CANCELLED'::public.meal_status,
     'its meal is cancelled');
 
-  insert into public.addresses (user_id, label, address_line, locality, city, pincode)
-  values (pg_temp.id('customer_a'), 'Daughter''s home', '12 Marine Drive', 'Churchgate', 'Mumbai', '400020')
+  insert into public.addresses (user_id, label, address_line, locality, city, latitude, longitude)
+  values (pg_temp.id('customer_a'), 'Daughter''s home', '12 Marine Drive', 'Churchgate', 'Mumbai', 18.9440, 72.8230)
   returning id into v_far;
   perform tests.assert_fails(
     format('select public.create_subscription(%L, %L, %L)', pg_temp.id('sharma_monthly_lunch'), v_far, '2026-10-08'),
-    'AREA_NOT_SERVED', 'kitchen does not deliver to that PIN code');
+    'AREA_NOT_SERVED', 'kitchen does not deliver more than 10 km away');
+  perform tests.assert_eq(public.delivery_check(pg_temp.id('sharma'), v_far), 'AREA_NOT_SERVED',
+    'the checkout screen is told the address is too far');
+  perform tests.assert_eq(public.delivery_check(pg_temp.id('sharma'), v_address), 'OK',
+    'the checkout screen is told a nearby address is fine');
+  -- Without coordinates, the kitchen must list the address''s area.
+  update public.addresses set latitude = null, longitude = null, locality = 'saket' where id = v_far;
+  perform tests.assert_eq(public.delivery_check(pg_temp.id('sharma'), v_far), 'OK',
+    'an address with no coordinates is accepted in an area the kitchen delivers to');
+  update public.addresses set locality = 'Churchgate' where id = v_far;
+  perform tests.assert_eq(public.delivery_check(pg_temp.id('sharma'), v_far), 'ADDRESS_NEEDS_LOCATION',
+    'otherwise the address needs a location');
+  perform tests.assert_fails(
+    format('select public.create_subscription(%L, %L, %L)', pg_temp.id('sharma_monthly_lunch'), v_far, '2026-10-08'),
+    'ADDRESS_NEEDS_LOCATION', 'and cannot be ordered to until it has one');
+  perform tests.assert_fails(
+    format('select public.delivery_check(%L, %L)', pg_temp.id('sharma'),
+      (select id from public.addresses where user_id = pg_temp.id('customer_b') limit 1)),
+    'ADDRESS_NOT_FOUND', 'delivery cannot be checked against someone else''s address');
   perform tests.assert_fails(
     format('delete from public.addresses where id = %L', v_address),
     '23001', 'an address used by a plan cannot be deleted');
@@ -536,7 +602,7 @@ begin
   perform tests.act_as(pg_temp.id('customer_a'));
   v_payment := public.create_subscription(
     pg_temp.id('maa_weekly_lunch'),
-    (select id from public.addresses where user_id = pg_temp.id('customer_a') and pincode = '110017'),
+    (select id from public.addresses where user_id = pg_temp.id('customer_a') and label = 'Home'),
     '2026-12-02');
   perform public.confirm_test_payment(v_payment.id, true);
   v_sub := v_payment.subscription_id;
@@ -579,4 +645,4 @@ $$;
 
 rollback;
 
-\echo '  ✓ workflow: checkout, meals, skip/undo, pause/resume (skips kept), cancel, provider onboarding, statuses, isolation, password sign-up phone'
+\echo '  ✓ workflow: discovery by distance and area, checkout, meals, skip/undo, pause/resume (skips kept), cancel, provider onboarding, statuses, isolation, password sign-up phone'

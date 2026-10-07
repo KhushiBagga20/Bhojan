@@ -31,7 +31,7 @@ import {
   Text,
 } from '@/components';
 import { RequireAuth } from '@/features/RequireAuth';
-import { useAddresses, useCreateSubscription, usePlan } from '@/lib/api';
+import { useAddresses, useAppSettings, useCreateSubscription, useDeliveryCheck, usePlan } from '@/lib/api';
 
 export default function CheckoutSetup() {
   return (
@@ -91,7 +91,11 @@ function SetupForm({ plan, address }: { plan: PlanData; address: AddressData | n
 
   const slot = slots.find((s) => s.id === slotId);
   const window = slot ? formatTimeWindow(slot.start_time, slot.end_time) : null;
-  const served = !!address && !!provider?.service_pincodes.includes(address.pincode);
+  // The server decides whether this kitchen delivers to this address.
+  const settings = useAppSettings();
+  const delivery = useDeliveryCheck(provider?.id, address?.id);
+  const served = delivery.data === 'OK';
+  const radius = settings.data?.delivery_radius_km ?? 10;
   const mealDates = startDate ? previewMealDates(startDate, plan.delivery_days, plan.meals_count) : [];
   const returnHere = `/checkout/${plan.id}`;
 
@@ -142,14 +146,24 @@ function SetupForm({ plan, address }: { plan: PlanData; address: AddressData | n
             address={address}
             onChange={() => router.push({ pathname: '/profile/address', params: { returnTo: returnHere } })}
           />
-          {!served ? (
+          {delivery.error ? (
+            <Notice tone="danger" message={describeError(delivery.error, 'checking your address').message}>
+              <Button label="Try again" variant="secondary" icon="refresh" onPress={() => delivery.refetch()} />
+            </Notice>
+          ) : delivery.data === 'AREA_NOT_SERVED' ? (
             <Notice
               tone="danger"
               title="This kitchen doesn't deliver here"
-              message={`${provider?.business_name} doesn't deliver to PIN code ${address.pincode}. Please change your address, or choose another kitchen.`}
+              message={`${provider?.business_name} is more than ${radius} km from this address. Please change your address, or choose a kitchen closer to you.`}
             >
-              <Button label="Choose another kitchen" variant="secondary" onPress={() => router.push('/discover')} />
+              <Button label="See kitchens near me" variant="secondary" onPress={() => router.push('/discover')} />
             </Notice>
+          ) : delivery.data === 'ADDRESS_NEEDS_LOCATION' ? (
+            <Notice
+              tone="highlight"
+              title="We need to know where this address is"
+              message="Tap “Change address”, then “Use my current location” while you are there. The kitchen can then check that it delivers to you."
+            />
           ) : null}
         </>
       ) : (

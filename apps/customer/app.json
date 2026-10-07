@@ -37,6 +37,12 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 160
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Bhojan uses your location to find home kitchens near you."
+        }
       ]
     ]
   }

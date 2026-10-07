@@ -13,6 +13,14 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+/**
+ * Drops everything fetched for the previous person. Screens that are still on
+ * show reload what is public; nothing is left waiting on data that was removed.
+ */
+function forgetCachedData(): void {
+  void queryClient.resetQueries();
+}
+
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [initializing, setInitializing] = useState(isSupabaseConfigured);
@@ -24,9 +32,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       .then(({ data }) => setSession(data.session))
       .finally(() => setInitializing(false));
 
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
-      if (!next) queryClient.clear();
+      // Someone signing out must not leave their data behind for the next person.
+      // Only on a real sign-out: at launch a signed-out visitor also arrives here
+      // with no session, and wiping the cache then would strand the public lists
+      // (kitchens, areas) that have already started loading.
+      if (event === 'SIGNED_OUT') forgetCachedData();
     });
     return () => data.subscription.unsubscribe();
   }, []);
@@ -38,7 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       initializing,
       signOut: async () => {
         await supabase.auth.signOut();
-        queryClient.clear();
+        forgetCachedData();
       },
     }),
     [session, initializing],

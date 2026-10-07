@@ -40,9 +40,10 @@ export function Providers({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data }) => setSession(data.session))
       .finally(() => setInitializing(false));
-    const { data } = supabase.auth.onAuthStateChange((_event, next) => {
+    const { data } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
-      if (!next) queryClient.clear();
+      // Only on a real sign-out: a signed-out visitor also arrives here at launch.
+      if (event === 'SIGNED_OUT') void queryClient.resetQueries();
     });
     return () => data.subscription.unsubscribe();
   }, [queryClient]);
@@ -54,7 +55,7 @@ export function Providers({ children }: { children: ReactNode }) {
       initializing,
       signOut: async () => {
         await supabase.auth.signOut();
-        queryClient.clear();
+        void queryClient.resetQueries();
       },
     }),
     [session, initializing, queryClient],

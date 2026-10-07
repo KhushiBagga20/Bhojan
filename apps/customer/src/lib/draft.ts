@@ -1,24 +1,25 @@
-// Before someone has an account, the address and food preferences they enter
-// during onboarding are kept on the device. They are saved to their account the
-// moment they sign in, so nobody types their address twice.
+// Before someone has an account, where they are and the food preferences they
+// choose during onboarding are kept on the device. Preferences are saved to
+// their account the moment they sign in, so nobody chooses twice.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery } from '@tanstack/react-query';
 import type { DietaryPreference } from '@bhojan/shared';
 import { queryClient } from './queryClient';
 import { supabase } from './supabase';
 
-const KEY = 'bhojan.onboarding-draft.v1';
+const KEY = 'bhojan.onboarding-draft.v2';
 
-export interface AddressDraft {
-  address_line: string;
-  locality: string;
-  city: string;
-  pincode: string;
-  instructions?: string;
-}
+/**
+ * Where to look for kitchens: a point read from the device with the person's
+ * permission, or an area they picked from a list when they would rather not
+ * share their location.
+ */
+export type Place =
+  | { kind: 'coords'; latitude: number; longitude: number; accuracy: number | null; capturedAt: string }
+  | { kind: 'area'; area: string; city: string };
 
 export interface OnboardingDraft {
-  address?: AddressDraft;
+  place?: Place;
   preferences?: DietaryPreference[];
 }
 
@@ -41,33 +42,13 @@ export async function saveDraft(patch: Partial<OnboardingDraft>): Promise<void> 
   await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }
 
-export async function clearDraft(): Promise<void> {
-  queryClient.setQueryData(['draft'], {});
-  await AsyncStorage.removeItem(KEY);
-}
-
-/** Copies anything entered before sign-in into the new account (without overwriting). */
+/**
+ * Copies the preferences chosen before sign-in into the new account (without
+ * overwriting). The place stays on the device: it becomes part of the delivery
+ * address when the person adds one.
+ */
 export async function applyDraftToAccount(userId: string): Promise<void> {
   const draft = await readDraft();
-  if (draft.address) {
-    const { count } = await supabase
-      .from('addresses')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId);
-    if (!count) {
-      const { error } = await supabase.from('addresses').insert({
-        user_id: userId,
-        label: 'Home',
-        is_default: true,
-        address_line: draft.address.address_line,
-        locality: draft.address.locality,
-        city: draft.address.city,
-        pincode: draft.address.pincode,
-        instructions: draft.address.instructions || null,
-      });
-      if (error) throw error;
-    }
-  }
   if (draft.preferences?.length) {
     const { data } = await supabase.from('users').select('dietary_preferences').eq('id', userId).single();
     if (!data?.dietary_preferences.length) {
@@ -78,10 +59,7 @@ export async function applyDraftToAccount(userId: string): Promise<void> {
       if (error) throw error;
     }
   }
-  await clearDraft();
+  await saveDraft({ preferences: undefined });
   // Screens still mounted underneath may have fetched before the draft was saved.
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['addresses'] }),
-    queryClient.invalidateQueries({ queryKey: ['profile'] }),
-  ]);
+  await queryClient.invalidateQueries({ queryKey: ['profile'] });
 }

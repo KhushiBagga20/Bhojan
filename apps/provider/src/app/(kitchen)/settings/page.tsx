@@ -3,6 +3,7 @@
 import { Eye, EyeOff, Image as ImageIcon, Plus, Rocket } from 'lucide-react';
 import { useRef, useState, type FormEvent } from 'react';
 import { describeError, formatTimeWindow, MEAL_TYPE_LABEL, MEAL_TYPES, type MealType } from '@bhojan/shared';
+import { KitchenLocation } from '@/components/KitchenLocation';
 import { KitchenProfileForm } from '@/components/KitchenProfileForm';
 import { useCurrentKitchen } from '@/components/KitchenShell';
 import { Button, Card, ConfirmDialog, Field, Notice, PageHeader, SectionTitle } from '@/components/ui';
@@ -17,6 +18,7 @@ export default function SettingsPage() {
         subtitle="Your kitchen’s details, delivery times, and whether customers can find you."
       />
       <GoLive kitchen={kitchen} />
+      <KitchenLocation kitchen={kitchen} />
       <DeliveryTimes kitchen={kitchen} />
       <Details kitchen={kitchen} />
       <CoverPhoto kitchen={kitchen} />
@@ -39,7 +41,6 @@ function Details({ kitchen }: { kitchen: Kitchen }) {
           phone: kitchen.phone.slice(-10),
           city: kitchen.city,
           service_areas: kitchen.service_areas.join(', '),
-          service_pincodes: kitchen.service_pincodes.join(', '),
           diet_type: kitchen.diet_type,
           dietary_options: kitchen.dietary_options,
           skip_cutoff_hours: kitchen.skip_cutoff_hours,
@@ -150,7 +151,7 @@ function GoLive({ kitchen }: { kitchen: Kitchen }) {
           setConfirmOffline(false);
           setMessage(
             isPublished
-              ? 'Your kitchen is live. Customers in your PIN codes can now find you and order.'
+              ? 'Your kitchen is live. Customers near you can now find you and order.'
               : 'Your kitchen is offline. Existing customers still get their meals.',
           );
         },
@@ -163,8 +164,8 @@ function GoLive({ kitchen }: { kitchen: Kitchen }) {
         <SectionTitle>{kitchen.is_published ? 'Your kitchen is live' : 'Go live'}</SectionTitle>
         <p className="text-ink-soft">
           {kitchen.is_published
-            ? `Customers with PIN codes ${kitchen.service_pincodes.join(', ')} can find you and order.`
-            : 'Customers can’t see your kitchen yet. Go live once you have a delivery time, a meal plan and your menu.'}
+            ? 'Customers near your kitchen can find you and order.'
+            : 'Customers can’t see your kitchen yet. Go live once you have set your kitchen’s location and added a delivery time, a meal plan and your menu.'}
         </p>
         {message ? <Notice tone="success">{message}</Notice> : null}
         {update.error && !confirmOffline ? (

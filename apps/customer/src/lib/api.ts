@@ -3,6 +3,7 @@
 import type { QueryData } from '@supabase/supabase-js';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { addDays, todayIST, unwrap, type DietaryPreference, type MenuWithItems } from '@bhojan/shared';
+import type { Place } from './draft';
 import { useSession } from './session';
 import { supabase } from './supabase';
 
@@ -51,8 +52,10 @@ export interface AddressInput {
   address_line: string;
   locality: string;
   city: string;
-  pincode: string;
   instructions?: string | null;
+  /** Where the address is. Leave both out to keep what is already saved. */
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export function useSaveAddress() {
@@ -74,6 +77,7 @@ export function useSaveAddress() {
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['addresses'] });
       client.invalidateQueries({ queryKey: ['providers'] });
+      client.invalidateQueries({ queryKey: ['delivery-check'] });
     },
   });
 }
@@ -97,18 +101,75 @@ const providerCardQuery = () =>
     );
 export type ProviderCardData = QueryData<ReturnType<typeof providerCardQuery>>[number];
 
-export function useProvidersNear(pincode: string | undefined) {
+/** A kitchen on the discovery list. The distance is approximate, and absent when searching by area. */
+export type NearbyKitchen = ProviderCardData & { distance_km: number | null };
+
+/** Discovery needs the neighbourhood, not the doorstep: about 100 m is plenty for a 10 km search. */
+const coarse = (degrees: number) => Math.round(degrees * 1000) / 1000;
+
+/**
+ * Kitchens for a place: within the delivery radius of a point (nearest first),
+ * or delivering to a chosen area. The server decides who qualifies; the point is
+ * only used for this search and is not stored.
+ */
+export function useKitchensNear(place: Place | undefined) {
+  const key =
+    place?.kind === 'coords'
+      ? ['coords', coarse(place.latitude), coarse(place.longitude)]
+      : ['area', place?.area.toLowerCase()];
   return useQuery({
-    queryKey: ['providers', pincode],
-    enabled: !!pincode,
+    queryKey: ['providers', ...key],
+    enabled: !!place,
+    queryFn: async (): Promise<NearbyKitchen[]> => {
+      const found =
+        place!.kind === 'coords'
+          ? unwrap(
+              await supabase.rpc('kitchens_near', {
+                p_latitude: coarse(place!.latitude),
+                p_longitude: coarse(place!.longitude),
+              }),
+            )
+          : unwrap(await supabase.rpc('kitchens_in_area', { p_area: place!.area })).map((row) => ({
+              provider_id: row.provider_id,
+              distance_km: null,
+            }));
+      if (found.length === 0) return [];
+      const cards = unwrap(
+        await providerCardQuery().in(
+          'id',
+          found.map((f) => f.provider_id),
+        ),
+      );
+      const byId = new Map(cards.map((card) => [card.id, card]));
+      // Keep the server's order: nearest first.
+      return found.flatMap((f) => {
+        const card = byId.get(f.provider_id);
+        return card ? [{ ...card, distance_km: f.distance_km }] : [];
+      });
+    },
+  });
+}
+
+/** The areas kitchens say they deliver to, for people who would rather not share their location. */
+export function useKitchenAreas() {
+  return useQuery({
+    queryKey: ['kitchen-areas'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => unwrap(await supabase.rpc('kitchen_areas')),
+  });
+}
+
+export type DeliveryStatus = 'OK' | 'AREA_NOT_SERVED' | 'ADDRESS_NEEDS_LOCATION';
+
+/** Whether a kitchen delivers to one of the person's own addresses, as decided by the server. */
+export function useDeliveryCheck(providerId: string | undefined, addressId: string | undefined) {
+  return useQuery({
+    queryKey: ['delivery-check', providerId, addressId],
+    enabled: !!providerId && !!addressId,
     queryFn: async () =>
       unwrap(
-        await providerCardQuery()
-          .eq('is_published', true)
-          .contains('service_pincodes', [pincode!])
-          .order('rating', { ascending: false, nullsFirst: false })
-          .order('business_name'),
-      ),
+        await supabase.rpc('delivery_check', { p_provider_id: providerId!, p_address_id: addressId! }),
+      ) as DeliveryStatus,
   });
 }
 
@@ -299,7 +360,7 @@ export function usePlan(planId: string | undefined) {
       unwrap(
         await supabase
           .from('plans')
-          .select('*, provider:provider_profiles(id, business_name, phone, service_pincodes, delivery_slots(*))')
+          .select('*, provider:provider_profiles(id, business_name, phone, delivery_slots(*))')
           .eq('id', planId!)
           .single(),
       ),

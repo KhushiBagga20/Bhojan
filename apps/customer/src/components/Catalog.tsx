@@ -3,6 +3,7 @@ import {
   colors,
   DIET_TYPE_LABEL,
   formatDeliveryDays,
+  formatDistance,
   formatRupees,
   MEAL_TYPE_LABEL,
   PLAN_PRICE_SUFFIX,
@@ -78,6 +79,8 @@ export interface ProviderCardProps {
   imageUrl: string | null;
   /** Lowest price of one meal across the kitchen's plans. */
   fromPrice: number | null;
+  /** Roughly how far the kitchen is, when the search was by location. */
+  distanceKm?: number | null;
   /** The customer's food preferences this kitchen can make. */
   suits: string[];
   onView: () => void;
@@ -91,6 +94,7 @@ export function ProviderCard({
   ratingCount,
   imageUrl,
   fromPrice,
+  distanceKm,
   suits,
   onView,
 }: ProviderCardProps) {
@@ -116,6 +120,12 @@ export function ProviderCard({
           <Text variant="bodyStrong">{formatRupees(fromPrice)}</Text>
           {' a meal'}
         </Text>
+      ) : null}
+      {typeof distanceKm === 'number' ? (
+        <View style={styles.distance}>
+          <Icon name="location" size={22} color={colors.textSecondary} />
+          <Text variant="body">{formatDistance(distanceKm)}</Text>
+        </View>
       ) : null}
       {suits.length > 0 ? (
         <View style={styles.suits}>
@@ -185,6 +195,11 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: spacing.md,
     alignItems: 'center',
+  },
+  distance: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   suits: {
     flexDirection: 'row',

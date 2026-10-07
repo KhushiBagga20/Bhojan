@@ -18,7 +18,7 @@ packages/shared    @bhojan/shared: design tokens, database types, dates (IST), m
                    status labels, schedule rules, friendly error messages (+ unit tests)
 supabase/
   migrations/      Schema, domain functions (RPCs), Row Level Security, storage, nightly job
-  seed.sql         Four demo kitchens in South Delhi (PIN 110017) with menus and plans
+  seed.sql         Four demo kitchens in South Delhi (with locations), menus and plans
   functions/       Edge functions: Razorpay order, verify, webhook
   tests/           SQL workflow + security tests that run on plain Postgres (no Docker)
   scripts/         gen-types.mjs: TypeScript types from the database
@@ -41,12 +41,24 @@ Buying a plan creates a **subscription**. Once paid, the database generates one 
 
 Meal statuses: `SCHEDULED → PREPARING → OUT_FOR_DELIVERY → DELIVERED`, plus `SKIPPED` and `CANCELLED`. Subscription statuses: `PENDING_PAYMENT`, `ACTIVE`, `PAUSED`, `CANCELLED`, `EXPIRED`.
 
+### Finding kitchens by location
+
+Customers are shown the kitchens near them. Nobody is asked for a PIN code.
+
+- **Customer:** taps *Use my current location* and allows it once. The app asks the server for published kitchens within `app_settings.delivery_radius_km` (10 km by default), nearest first. The point is used for that search only and is not stored. The first time they order, the location is saved with their delivery address.
+- **No location?** If someone declines, or their device can't tell, they pick their area from the areas kitchens say they deliver to. Those kitchens are matched by area name instead.
+- **Kitchen:** taps *Use my current location* once in **Settings → Kitchen location**, while in the kitchen. A kitchen cannot go live without it.
+- **At checkout** the server applies the same rule again (`delivery_status`): within the radius when the address has a location, otherwise the kitchen must list the address's area. The checkout screen asks first (`delivery_check`) so the customer is told before paying.
+- **Privacy:** a home kitchen is somebody's home, so its exact location lives in `provider_locations`, readable only by its owner. Everyone else only ever gets a distance rounded to half a kilometre from `kitchens_near`. A customer's address location is visible only to them and to the kitchen that cooks for them.
+- **Where it works:** browsers only share location on `https://` or `localhost`. On a phone, use the Expo app (it asks through the phone's own permission prompt) or a deployed `https` site.
+
 ### Security
 
 - **Row Level Security on every table.** Customers see only their own profile, addresses, subscriptions, meals and payments. Providers manage only their own catalog, and see only the paying customers, addresses and meals of their own kitchen. Published catalog data (kitchens, plans, menus) is public, so people can browse before signing up.
 - **Clients never write subscriptions, meals or payments directly.** Every change goes through `SECURITY DEFINER` functions that check ownership and business rules: `create_subscription`, `skip_meal`, `unskip_meal`, `pause_subscription`, `resume_subscription`, `cancel_subscription`, `update_meal_status`. Prices always come from the plan on the server.
 - **Column privileges:** customers can't change their role; providers can't set their own rating.
-- **A kitchen can't go live** until it has PIN codes, an active plan and a delivery time (enforced by a trigger).
+- **A kitchen can't go live** until it has a location, an active plan and a delivery time (enforced by a trigger).
+- **Kitchen locations are private:** only the owner can read `provider_locations`; customers only get an approximate distance.
 - **Storage:** providers can upload only into `provider-media/<their provider id>/…`.
 - All of this is covered by `supabase/tests/01_workflow.test.sql`.
 
@@ -146,8 +158,8 @@ This starts Expo. Scan the QR code with Expo Go, or press `i` / `a` for a simula
 
 ### 5. Try the whole flow
 
-1. **Kitchen:** sign in at http://localhost:3001, set up the kitchen (use PIN 110017), add a delivery time, create a plan, add a weekly menu, then **Go live**.
-2. **Customer:** open the app, tap *Find meals near me*, enter an address with PIN 110017, pick your kitchen, *Subscribe*, create an account, and pay (test mode).
+1. **Kitchen:** sign in at http://localhost:3001, set up the kitchen, tap **Use my current location** under *Settings → Kitchen location*, add a delivery time, create a plan, add a weekly menu, then **Go live**.
+2. **Customer:** open the app, tap *Find meals near me*, then *Use my current location* (within 10 km of the kitchen, so on the same computer is fine). Pick your kitchen, *Subscribe*, create an account, add your address, and pay (test mode).
 3. The meals appear under **Meals**. Skip one, pause and resume the plan.
 4. **Kitchen:** the new customer appears on **Today** / **Customers**. Mark meals as preparing, on the way, delivered. The customer sees each change.
 

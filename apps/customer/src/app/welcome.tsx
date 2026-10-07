@@ -12,7 +12,7 @@ const PROMISES: Array<{ icon: IconName; text: string }> = [
 
 export default function Welcome() {
   const draft = useDraft();
-  const hasAddress = !!draft.data?.address;
+  const hasPlace = !!draft.data?.place;
 
   return (
     <Screen
@@ -21,7 +21,7 @@ export default function Welcome() {
           <Button
             label="Find meals near me"
             icon="search"
-            onPress={() => router.push(hasAddress ? '/discover' : '/onboarding/address')}
+            onPress={() => router.push(hasPlace ? '/discover' : '/onboarding/location')}
           />
           <Button
             label="I already have an account"

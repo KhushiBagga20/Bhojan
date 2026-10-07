@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { TextInput, View } from 'react-native';
-import { isValidPincode, spacing } from '@bhojan/shared';
+import { spacing } from '@bhojan/shared';
 import { FormField } from '@/components';
 import { announce } from '@/lib/a11y';
 
@@ -8,7 +8,6 @@ export interface AddressValues {
   address_line: string;
   locality: string;
   city: string;
-  pincode: string;
   instructions: string;
 }
 
@@ -19,7 +18,6 @@ export function validateAddress(values: AddressValues): Errors {
   if (!values.address_line.trim()) errors.address_line = 'Please enter your house or flat number.';
   if (!values.locality.trim()) errors.locality = 'Please enter your area or locality.';
   if (!values.city.trim()) errors.city = 'Please enter your city.';
-  if (!isValidPincode(values.pincode.replace(/\s/g, ''))) errors.pincode = 'PIN codes have 6 digits, like 110017.';
   return errors;
 }
 
@@ -28,16 +26,15 @@ export function cleanAddress(values: AddressValues): AddressValues {
     address_line: values.address_line.trim(),
     locality: values.locality.trim(),
     city: values.city.trim(),
-    pincode: values.pincode.replace(/\s/g, ''),
     instructions: values.instructions.trim(),
   };
 }
 
-export const EMPTY_ADDRESS: AddressValues = { address_line: '', locality: '', city: '', pincode: '', instructions: '' };
+export const EMPTY_ADDRESS: AddressValues = { address_line: '', locality: '', city: '', instructions: '' };
 
 /**
  * Controlled address fields. The parent owns submit; call `form.submit()` to
- * validate. Forgiving: spaces in PIN codes are ignored, errors say how to fix it.
+ * validate. Forgiving: extra spaces are ignored, and errors say how to fix it.
  */
 export function useAddressForm(initial: AddressValues) {
   const [values, setValues] = useState(initial);
@@ -68,7 +65,6 @@ export function useAddressForm(initial: AddressValues) {
 export function AddressFields({ form }: { form: ReturnType<typeof useAddressForm> }) {
   const locality = useRef<TextInput>(null);
   const city = useRef<TextInput>(null);
-  const pincode = useRef<TextInput>(null);
   const { values, errors, set } = form;
 
   return (
@@ -103,20 +99,6 @@ export function AddressFields({ form }: { form: ReturnType<typeof useAddressForm
         error={errors.city}
         textContentType="addressCity"
         autoComplete="postal-address-locality"
-        returnKeyType="next"
-        onSubmitEditing={() => pincode.current?.focus()}
-      />
-      <FormField
-        ref={pincode}
-        label="PIN code"
-        hint="6 digits"
-        value={values.pincode}
-        onChangeText={(text) => set('pincode', text.replace(/[^\d\s]/g, ''))}
-        error={errors.pincode}
-        keyboardType="number-pad"
-        textContentType="postalCode"
-        autoComplete="postal-code"
-        maxLength={7}
       />
       <FormField
         label="Note for the delivery person"

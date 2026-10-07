@@ -33,8 +33,8 @@ export default function Onboarding() {
         <p className="text-small font-bold uppercase tracking-wide text-primary">Bhojan for Kitchens</p>
         <h1 className="font-display text-title">Set up your kitchen</h1>
         <p className="text-ink-soft">
-          Start with the basics. Next you’ll add your delivery times, a meal plan and your menu. Customers can’t see
-          your kitchen until you choose to go live.
+          Start with the basics. Next you’ll set your kitchen’s location and add your delivery times, a meal plan and
+          your menu. Customers can’t see your kitchen until you choose to go live.
         </p>
       </div>
       <Card>
@@ -47,7 +47,6 @@ export default function Onboarding() {
             phone: phone ? phone.slice(-10) : '',
             city: '',
             service_areas: '',
-            service_pincodes: '',
             diet_type: 'VEGETARIAN',
             dietary_options: [],
             skip_cutoff_hours: 3,

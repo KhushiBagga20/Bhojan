@@ -60,6 +60,40 @@ export function useUpdateKitchen() {
   });
 }
 
+/** Where the kitchen is. Only its owner can read this; customers see an approximate distance. */
+export function useKitchenLocation(providerId: string | undefined) {
+  return useQuery({
+    queryKey: ['kitchen-location', providerId],
+    enabled: !!providerId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('provider_locations')
+        .select('*')
+        .eq('provider_id', providerId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+}
+
+export function useSaveKitchenLocation() {
+  const client = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: TablesInsert<'provider_locations'>) =>
+      unwrap(await supabase.from('provider_locations').upsert(input).select().single()),
+    onSuccess: (location) => client.setQueryData(['kitchen-location', location.provider_id], location),
+  });
+}
+
+export function useAppSettings() {
+  return useQuery({
+    queryKey: ['app-settings'],
+    staleTime: 5 * 60_000,
+    queryFn: async () => unwrap(await supabase.from('app_settings').select('*').single()),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Delivery slots, plans, menus
 // ---------------------------------------------------------------------------

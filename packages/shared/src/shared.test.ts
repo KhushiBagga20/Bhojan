@@ -12,7 +12,15 @@ import {
   relativeDayWithDate,
   todayIST,
 } from './dates.ts';
-import { formatAddress, formatPhone, formatRupees, normalizeIndianMobile, pricePerMeal, telLink } from './format.ts';
+import {
+  formatAddress,
+  formatDistance,
+  formatPhone,
+  formatRupees,
+  normalizeIndianMobile,
+  pricePerMeal,
+  telLink,
+} from './format.ts';
 import { canChangeMeal, formatDeadline, mealChangeDeadline, previewMealDates, startDateOptions } from './schedule.ts';
 import { nextMenuDate, resolveMenu, weeklyMenu, type MenuWithItems } from './menu.ts';
 import { describeError, OFFLINE_MESSAGE } from './errors.ts';
@@ -151,7 +159,7 @@ test('errors become plain sentences', () => {
   assert.deepEqual(describeError(new TypeError('Network request failed')), { message: OFFLINE_MESSAGE, offline: true });
   assert.match(
     describeError({ message: 'AREA_NOT_SERVED', code: 'P0001' }).message,
-    /doesn't deliver to your PIN code/,
+    /doesn't deliver as far as your address/,
   );
   assert.match(describeError({ message: 'Token has expired or is invalid' }).message, /code didn't work/);
   assert.match(
@@ -177,7 +185,20 @@ test('status metadata never relies on colour alone', () => {
   assert.equal(nextProviderStatus('SCHEDULED'), 'PREPARING');
   assert.equal(nextProviderStatus('DELIVERED'), null);
   assert.equal(
+    formatAddress({ address_line: 'B-42', locality: 'Malviya Nagar', city: 'New Delhi' }),
+    'B-42, Malviya Nagar, New Delhi',
+  );
+  assert.equal(
     formatAddress({ address_line: 'B-42', locality: 'Malviya Nagar', city: 'New Delhi', pincode: '110017' }),
     'B-42, Malviya Nagar, New Delhi 110017',
+    'addresses saved with a PIN code still show it',
   );
+});
+
+test('distances read the way people say them', () => {
+  assert.equal(formatDistance(0), 'Less than 1 km away');
+  assert.equal(formatDistance(0.5), 'Less than 1 km away');
+  assert.equal(formatDistance(1), 'About 1 km away');
+  assert.equal(formatDistance(2.5), 'About 2.5 km away');
+  assert.equal(formatDistance(10), 'About 10 km away');
 });

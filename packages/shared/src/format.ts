@@ -58,13 +58,20 @@ export function telLink(phone: string): string {
   return `tel:+${digits.length === 10 ? `91${digits}` : digits}`;
 }
 
-export function isValidPincode(pincode: string): boolean {
-  return /^[1-9]\d{5}$/.test(pincode.trim());
+/** "B-42, Second Floor, Malviya Nagar, New Delhi" (with the PIN code, for addresses saved with one). */
+export function formatAddress(
+  address: Pick<AddressRow, 'address_line' | 'locality' | 'city'> & { pincode?: string | null },
+): string {
+  return `${address.address_line}, ${address.locality}, ${address.city}${address.pincode ? ` ${address.pincode}` : ''}`;
 }
 
-/** "B-42, Second Floor, Malviya Nagar, New Delhi 110017" */
-export function formatAddress(address: Pick<AddressRow, 'address_line' | 'locality' | 'city' | 'pincode'>): string {
-  return `${address.address_line}, ${address.locality}, ${address.city} ${address.pincode}`;
+/**
+ * A distance the way people say it: "Less than 1 km away", "About 2.5 km away".
+ * Distances from the server are already rounded to half a kilometre.
+ */
+export function formatDistance(km: number): string {
+  if (km < 1) return 'Less than 1 km away';
+  return `About ${Number.isInteger(km) ? km : km.toFixed(1)} km away`;
 }
 
 /** "Sharma ji" style dashboard greeting uses the first word; customers see the full name. */

@@ -15,36 +15,36 @@ insert into auth.users (id, aud, role, phone, raw_user_meta_data) values
 
 insert into public.provider_profiles
   (id, user_id, business_name, tagline, description, phone, diet_type, dietary_options,
-   city, service_areas, service_pincodes, skip_cutoff_hours, rating, rating_count)
+   city, service_areas, skip_cutoff_hours, rating, rating_count)
 values
   ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001',
    'Sharma Home Tiffin', 'Home-style vegetarian meals',
    'Fresh North Indian food cooked every morning by Sunita Sharma in her Malviya Nagar kitchen. Less oil, no shortcuts: the way you would cook for your own family.',
    '919810000001', 'VEGETARIAN', array['LOW_SPICE', 'LESS_OIL'],
-   'New Delhi', array['Malviya Nagar', 'Saket', 'Hauz Khas', 'Greater Kailash'], array['110017', '110016', '110048'],
+   'New Delhi', array['Malviya Nagar', 'Saket', 'Hauz Khas', 'Greater Kailash'],
    3, 4.7, 126),
   ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002',
    'Maa''s Kitchen', 'Home-style vegetarian meals',
    'Simple dal-roti-sabzi meals, just like at home. Kamla ji has been feeding students and families in Kalkaji for twelve years.',
    '919810000002', 'VEGETARIAN', array['JAIN', 'NO_ONION_GARLIC'],
-   'New Delhi', array['Malviya Nagar', 'Kalkaji', 'Lajpat Nagar', 'Defence Colony'], array['110017', '110019', '110024'],
+   'New Delhi', array['Malviya Nagar', 'Kalkaji', 'Lajpat Nagar', 'Defence Colony'],
    3, 4.5, 88),
   ('10000000-0000-4000-8000-000000000003', '00000000-0000-4000-8000-000000000003',
    'Annapurna Satvik Rasoi', 'Jain and satvik meals, no onion or garlic',
    'Light, satvik meals cooked without onion or garlic. Low salt on request. Popular with older customers who want gentle, nourishing food.',
    '919810000003', 'VEGETARIAN', array['JAIN', 'NO_ONION_GARLIC', 'LOW_SPICE', 'LESS_SALT'],
-   'New Delhi', array['Malviya Nagar', 'Lajpat Nagar'], array['110017', '110024'],
+   'New Delhi', array['Malviya Nagar', 'Lajpat Nagar'],
    4, 4.8, 54),
   ('10000000-0000-4000-8000-000000000004', '00000000-0000-4000-8000-000000000004',
    'Punjabi Ghar ka Khana', 'Homestyle meals, egg and chicken twice a week',
    'Hearty Punjabi home cooking. Vegetarian most days, with egg curry on Wednesdays and chicken on Saturdays.',
    '919810000004', 'BOTH', array['LOW_SPICE'],
-   'New Delhi', array['Saket', 'Hauz Khas', 'Malviya Nagar'], array['110016', '110048', '110017'],
+   'New Delhi', array['Saket', 'Hauz Khas', 'Malviya Nagar'],
    3, 4.4, 41),
   ('10000000-0000-4000-8000-000000000005', '00000000-0000-4000-8000-000000000005',
    'Draft Kitchen', 'Not published yet', null,
    '919810000005', 'VEGETARIAN', '{}',
-   'New Delhi', array['Malviya Nagar'], array['110017'],
+   'New Delhi', array['Malviya Nagar'],
    3, null, 0);
 
 insert into public.delivery_slots (provider_id, meal_type, start_time, end_time) values
@@ -143,7 +143,15 @@ select pg_temp.seed_menu('10000000-0000-4000-8000-000000000004', 'LUNCH', 5::sma
 select pg_temp.seed_menu('10000000-0000-4000-8000-000000000004', 'LUNCH', 6::smallint, array['Chicken curry', 'Jeera rice', '3 rotis']);
 select pg_temp.seed_menu('10000000-0000-4000-8000-000000000004', 'LUNCH', 7::smallint, array['Chole bhature', 'Lassi']);
 
--- Publish (the publish check requires areas, an active plan and a delivery time).
+-- Where each kitchen is (approximate neighbourhood centres in South Delhi). The
+-- draft kitchen has none, so it cannot go live.
+insert into public.provider_locations (provider_id, latitude, longitude, accuracy_m) values
+  ('10000000-0000-4000-8000-000000000001', 28.5355, 77.2100, 20),  -- Malviya Nagar
+  ('10000000-0000-4000-8000-000000000002', 28.5494, 77.2588, 20),  -- Kalkaji
+  ('10000000-0000-4000-8000-000000000003', 28.5677, 77.2433, 20),  -- Lajpat Nagar
+  ('10000000-0000-4000-8000-000000000004', 28.5245, 77.2066, 20);  -- Saket
+
+-- Publish (the publish check requires a location, an active plan and a delivery time).
 update public.provider_profiles
 set is_published = true
 where id in (

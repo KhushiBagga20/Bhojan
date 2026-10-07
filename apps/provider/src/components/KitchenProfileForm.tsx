@@ -14,7 +14,6 @@ export interface KitchenProfileValues {
   phone: string;
   city: string;
   service_areas: string;
-  service_pincodes: string;
   diet_type: DietType;
   dietary_options: string[];
   skip_cutoff_hours: number;
@@ -28,7 +27,6 @@ export interface CleanKitchenProfile {
   phone: string;
   city: string;
   service_areas: string[];
-  service_pincodes: string[];
   diet_type: DietType;
   dietary_options: string[];
   skip_cutoff_hours: number;
@@ -42,25 +40,12 @@ const splitList = (text: string) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
-/** Forgiving: accepts commas, spaces or new lines between PIN codes. */
-export function parsePincodes(text: string): { valid: string[]; invalid: string[] } {
-  const tokens = text.split(/[\s,]+/).filter(Boolean);
-  return {
-    valid: [...new Set(tokens.filter((t) => /^[1-9]\d{5}$/.test(t)))],
-    invalid: tokens.filter((t) => !/^[1-9]\d{5}$/.test(t)),
-  };
-}
-
 function validate(v: KitchenProfileValues): { errors: Errors; clean?: CleanKitchenProfile } {
   const errors: Errors = {};
   if (v.business_name.trim().length < 2) errors.business_name = 'Please enter your kitchen’s name.';
   const phone = normalizeIndianMobile(v.phone);
   if (!phone) errors.phone = 'Please enter a 10-digit mobile number customers can call.';
   if (!v.city.trim()) errors.city = 'Please enter your city.';
-  const pins = parsePincodes(v.service_pincodes);
-  if (pins.invalid.length)
-    errors.service_pincodes = `These don't look like PIN codes: ${pins.invalid.join(', ')}. PIN codes have 6 digits.`;
-  else if (!pins.valid.length) errors.service_pincodes = 'Add at least one PIN code you deliver to.';
   if (Object.keys(errors).length) return { errors };
   return {
     errors,
@@ -72,7 +57,6 @@ function validate(v: KitchenProfileValues): { errors: Errors; clean?: CleanKitch
       phone: phone!.replace('+', ''),
       city: v.city.trim(),
       service_areas: splitList(v.service_areas),
-      service_pincodes: pins.valid,
       diet_type: v.diet_type,
       dietary_options: v.dietary_options,
       skip_cutoff_hours: v.skip_cutoff_hours,
@@ -194,22 +178,12 @@ export function KitchenProfileForm({
       <Field label="City" error={errors.city}>
         {(p) => <input {...p} value={values.city} onChange={(e) => set('city', e.target.value)} />}
       </Field>
-      <Field label="Areas you deliver to" optional hint="Separate with commas, e.g. Malviya Nagar, Saket">
-        {(p) => <input {...p} value={values.service_areas} onChange={(e) => set('service_areas', e.target.value)} />}
-      </Field>
       <Field
-        label="PIN codes you deliver to"
-        hint="Customers with these PIN codes will find you. Separate with commas, e.g. 110017, 110016"
-        error={errors.service_pincodes}
+        label="Areas you deliver to"
+        optional
+        hint="Shown to customers, and how customers who don’t share their location find you. Separate with commas, e.g. Malviya Nagar, Saket"
       >
-        {(p) => (
-          <input
-            {...p}
-            inputMode="numeric"
-            value={values.service_pincodes}
-            onChange={(e) => set('service_pincodes', e.target.value)}
-          />
-        )}
+        {(p) => <input {...p} value={values.service_areas} onChange={(e) => set('service_areas', e.target.value)} />}
       </Field>
 
       {full ? (

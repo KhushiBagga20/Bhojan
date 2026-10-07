@@ -2,16 +2,18 @@
 
 import { CircleCheck, CircleDot } from 'lucide-react';
 import Link from 'next/link';
-import { useMenus, usePlans, useSlots, type Kitchen } from '@/lib/queries';
+import { useKitchenLocation, useMenus, usePlans, useSlots, type Kitchen } from '@/lib/queries';
 import { Card, cx } from './ui';
 
-/** Shown until the kitchen is live: the four steps, in order, with links. */
+/** Shown until the kitchen is live: the five steps, in order, with links. */
 export function SetupChecklist({ kitchen }: { kitchen: Kitchen }) {
   const slots = useSlots(kitchen.id);
   const plans = usePlans(kitchen.id);
   const menus = useMenus(kitchen.id);
+  const location = useKitchenLocation(kitchen.id);
 
   const steps = [
+    { done: !!location.data, label: 'Set your kitchen’s location', href: '/settings#location' },
     {
       done: !!slots.data?.some((s) => s.is_active),
       label: 'Add your delivery times',

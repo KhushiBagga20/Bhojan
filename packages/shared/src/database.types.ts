@@ -12,7 +12,7 @@ export type Database = {
           address_line: string;
           locality: string;
           city: string;
-          pincode: string;
+          pincode: string | null;
           instructions: string | null;
           latitude: number | null;
           longitude: number | null;
@@ -27,7 +27,7 @@ export type Database = {
           address_line: string;
           locality: string;
           city: string;
-          pincode: string;
+          pincode?: string | null;
           instructions?: string | null;
           latitude?: number | null;
           longitude?: number | null;
@@ -42,7 +42,7 @@ export type Database = {
           address_line?: string;
           locality?: string;
           city?: string;
-          pincode?: string;
+          pincode?: string | null;
           instructions?: string | null;
           latitude?: number | null;
           longitude?: number | null;
@@ -67,6 +67,7 @@ export type Database = {
           support_phone: string | null;
           timezone: string;
           updated_at: string;
+          delivery_radius_km: number;
         };
         Insert: {
           id?: boolean;
@@ -74,6 +75,7 @@ export type Database = {
           support_phone?: string | null;
           timezone?: string;
           updated_at?: string;
+          delivery_radius_km?: number;
         };
         Update: {
           id?: boolean;
@@ -81,6 +83,7 @@ export type Database = {
           support_phone?: string | null;
           timezone?: string;
           updated_at?: string;
+          delivery_radius_km?: number;
         };
         Relationships: [];
       };
@@ -444,6 +447,38 @@ export type Database = {
           },
         ];
       };
+      provider_locations: {
+        Row: {
+          provider_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m: number | null;
+          updated_at: string;
+        };
+        Insert: {
+          provider_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m?: number | null;
+          updated_at?: string;
+        };
+        Update: {
+          provider_id?: string;
+          latitude?: number;
+          longitude?: number;
+          accuracy_m?: number | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "provider_locations_provider_id_fkey";
+            columns: ["provider_id"];
+            isOneToOne: true;
+            referencedRelation: "provider_profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       provider_profiles: {
         Row: {
           id: string;
@@ -690,6 +725,10 @@ export type Database = {
         Args: never;
         Returns: string;
       };
+      delivery_check: {
+        Args: { p_provider_id: string; p_address_id: string };
+        Returns: string;
+      };
       is_address_visible_to_current_provider: {
         Args: { p_address_id: string };
         Returns: boolean;
@@ -701,6 +740,18 @@ export type Database = {
       is_customer_of_current_provider: {
         Args: { p_customer_id: string };
         Returns: boolean;
+      };
+      kitchen_areas: {
+        Args: never;
+        Returns: { area: string; city: string; kitchens: number }[];
+      };
+      kitchens_in_area: {
+        Args: { p_area: string };
+        Returns: { provider_id: string }[];
+      };
+      kitchens_near: {
+        Args: { p_latitude: number; p_longitude: number };
+        Returns: { provider_id: string; distance_km: number }[];
       };
       meal_change_deadline: {
         Args: { p_date: string; p_window_start: string; p_cutoff_hours: number };
